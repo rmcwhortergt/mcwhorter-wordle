@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Classroom Wordle</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      color: #2d3748;
+      background: linear-gradient(135deg, #fce7f3 0%, #e0e7ff 50%, #dcfce7 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin: 0;
+      padding: 20px;
+      user-select: none;
+    }
+
+    .header {
+      width: 100%;
+      max-width: 520px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 15px;
+      gap: 8px;
+    }
+    h1 { margin: 0; font-size: 1.8rem; color: #1e293b; }
+    .header-btns { display: flex; gap: 6px; }
+    .top-btn {
+      font-family: Arial, sans-serif;
+      background: rgba(255, 255, 255, 0.85);
+      border: 2px solid #cbd5e1;
+      color: #1e293b;
+      padding: 8px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      font-size: 0.85rem;
+    }
+    .top-btn:hover { background: #ffffff; }
+
+    #teacher-panel {
+      display: none;
+      background: rgba(255, 255, 255, 0.96);
+      border: 2px solid #94a3b8;
+      border-radius: 10px;
+      padding: 16px;
+      margin-bottom: 20px;
+      text-align: center;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      max-width: 440px;
+      width: 100%;
+    }
+    #custom-word-input {
+      padding: 8px;
+      font-size: 1rem;
+      text-transform: uppercase;
+      width: 140px;
+      text-align: center;
+      letter-spacing: 2px;
+      border: 2px solid #cbd5e1;
+      border-radius: 6px;
+      margin-bottom: 10px;
+    }
+    .panel-btns {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .panel-btn {
+      font-family: Arial, sans-serif;
+      padding: 9px 14px;
+      font-size: 0.9rem;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    .btn-green { background: #6aaa64; }
+    .btn-blue  { background: #3b82f6; }
+    .panel-btn:hover { filter: brightness(0.95); }
+
+    /* Visible link container */
+    #generated-link-box {
+      display: none;
+      margin-top: 12px;
+      padding-top: 10px;
+      border-top: 1px solid #e2e8f0;
+    }
+    #student-link-display {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 7px 10px;
+      font-size: 0.85rem;
+      color: #1e293b;
+      background: #f8fafc;
+      border: 1px solid #94a3b8;
+      border-radius: 6px;
+      text-align: center;
+      user-select: all; /* Clicking once highlights the entire URL */
+    }
+    #copy-status {
+      font-size: 0.85rem;
+      font-weight: bold;
+      color: #16a34a;
+      margin-bottom: 6px;
+    }
+
+    #board {
+      display: grid;
+      grid-template-rows: repeat(6, 58px);
+      gap: 6px;
+      margin-bottom: 15px;
+    }
+    .row {
+      display: grid;
+      grid-template-columns: repeat(5, 58px);
+      gap: 6px;
+    }
+    .tile {
+      border: 2px solid #cbd5e1;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.92);
+      color: #1a1a1b;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 2rem;
+      font-weight: bold;
+      text-transform: uppercase;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-6px); }
+      75% { transform: translateX(6px); }
+    }
+    .shake { animation: shake 0.3s ease-in-out; }
+
+    #keyboard {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-top: 10px;
+    }
+    .kb-row {
+      display: flex;
+      justify-content: center;
+      gap: 5px;
+    }
+    .key {
+      font-family: Arial, sans-serif;
+      height: 48px;
+      min-width: 38px;
+      padding: 0 10px;
+      border-radius: 6px;
+      border: 1px solid #cbd5e1;
+      background-color: rgba(255, 255, 255, 0.85);
+      color: #1a1a1b;
+      font-weight: bold;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+    .key:hover { background-color: #ffffff; }
+    .key.wide { min-width: 64px; font-size: 0.8rem; }
+
+    .correct { background-color: #6aaa64 !important; color: white !important; border-color: #6aaa64; }
+    .present { background-color: #c9b458 !important; color: white !important; border-color: #c9b458; }
+    .absent  { background-color: #787c7e !important; color: white !important; border-color: #787c7e; }
+
+    #message { font-size: 1.15rem; font-weight: bold; height: 28px; margin-bottom: 10px; color: #1e293b; }
+  </style>
+</head>
+<body>
+
+  <div class="header" id="top-header">
+    <h1 id="game-title">Classroom Wordle</h1>
+    <div class="header-btns" id="teacher-controls">
+      <button class="top-btn" onclick="loadRandomWord()">🎲 Random</button>
+      <button class="top-btn" onclick="toggleTeacherPanel()">⚙️ Teacher Setup</button>
+    </div>
+  </div>
+
+  <div id="teacher-panel">
+    <p style="margin-top:0; margin-bottom:8px;"><strong>Set Secret 5-Letter Word:</strong></p>
+    <input type="password" id="custom-word-input" maxlength="5" placeholder="WORD">
+    <div class="panel-btns">
+      <button class="panel-btn btn-green" onclick="startCustomGame()">Play Here</button>
+      <button class="panel-btn btn-blue" onclick="copyStudentLink()">🔗 Copy Student Link</button>
+    </div>
+
+    <!-- Visible Link Box + Auto-Copy Status -->
+    <div id="generated-link-box">
+      <div id="copy-status">✅ Link copied to clipboard!</div>
+      <input type="text" id="student-link-display" readonly onclick="this.select()">
+    </div>
+
+    <p style="font-size:0.78rem; color:#666; margin-bottom:0; margin-top:8px;">
+      "Copy Student Link" creates a secret link for Google Classroom so students all get this exact word!
+    </p>
+  </div>
+
+  <div id="message"></div>
+  <div id="board"></div>
+  <div id="keyboard"></div>
+
+  <script>
+    let SECRET_WORD = "PLANT";
+    let currentRow = 0;
+    let currentGuess = "";
+    let gameOver = false;
+    let isChecking = false;
+
+    const KEYBOARD_LAYOUT = [
+      ["Q","W","E","R","T","Y","U","I","O","P"],
+      ["A","S","D","F","G","H","J","K","L"],
+      ["ENTER","Z","X","C","V","B","N","M","⌫"]
+    ];
+
+    function toggleTeacherPanel() {
+      const panel = document.getElementById("teacher-panel");
+      panel.style.display = panel.style.display === "block" ? "none" : "block";
+      document.getElementById("generated-link-box").style.display = "none";
+      document.getElementById("custom-word-input").focus();
+    }
+
+    function getValidInputWord() {
+      const input = document.getElementById("custom-word-input").value.trim().toUpperCase();
+      if (!/^[A-Z]{5}$/.test(input)) {
+        alert("Please enter a valid 5-letter word (letters A-Z only).");
+        return null;
+      }
+      return input;
+    }
+
+    function startCustomGame() {
+      const word = getValidInputWord();
+      if (!word) return;
+      SECRET_WORD = word;
+      document.getElementById("custom-word-input").value = "";
+      document.getElementById("teacher-panel").style.display = "none";
+      resetBoard();
+    }
+
+    // Encode word into secret URL, show it in the text box, AND auto-copy it
+    function copyStudentLink() {
+      const word = getValidInputWord();
+      if (!word) return;
+
+      const encoded = btoa(word);
+      const baseUrl = window.location.href.split("?")[0];
+      const studentUrl = `${baseUrl}?w=${encodeURIComponent(encoded)}`;
+
+      // Display the link in the visible box and highlight it
+      const linkBox = document.getElementById("generated-link-box");
+      const linkInput = document.getElementById("student-link-display");
+      const statusText = document.getElementById("copy-status");
+
+      linkBox.style.display = "block";
+      linkInput.value = studentUrl;
+      linkInput.focus();
+      linkInput.select();
+
+      // Automatically copy to clipboard
+      navigator.clipboard.writeText(studentUrl).then(() => {
+        statusText.textContent = "✅ Link copied! (Or copy it directly below)";
+        statusText.style.color = "#16a34a";
+      }).catch(() => {
+        statusText.textContent = "📋 Press Ctrl+C (or Cmd+C) to copy your link:";
+        statusText.style.color = "#2563eb";
+      });
+    }
+
+    function checkUrlForStudentWord() {
+      const params = new URLSearchParams(window.location.search);
+      const encodedWord = params.get("w");
+      if (!encodedWord) return false;
+
+      try {
+        const decoded = atob(encodedWord).trim().toUpperCase();
+        if (/^[A-Z]{5}$/.test(decoded)) {
+          SECRET_WORD = decoded;
+          document.getElementById("teacher-controls").style.display = "none";
+          document.getElementById("top-header").style.justifyContent = "center";
+          resetBoard();
+          return true;
+        }
+      } catch (e) {
+        console.error("Invalid word code in URL");
+      }
+      return false;
+    }
+
+    async function loadRandomWord() {
+      resetBoard();
+      const msg = document.getElementById("message");
+      msg.textContent = "Picking a random word...";
+      isChecking = true;
+
+      try {
+        const response = await fetch("https://random-word-api.herokuapp.com/word?length=5");
+        const data = await response.json();
+        const word = data[0].toUpperCase();
+        if (/^[A-Z]{5}$/.test(word)) {
+          SECRET_WORD = word;
+        }
+      } catch (error) {
+        const backup = ["PLANT", "ORBIT", "EARTH", "CLOUD", "BRAIN"];
+        SECRET_WORD = backup[Math.floor(Math.random() * backup.length)];
+      }
+
+      isChecking = false;
+      msg.textContent = "";
+    }
+
+    function resetBoard() {
+      currentRow = 0;
+      currentGuess = "";
+      gameOver = false;
+      isChecking = false;
+      document.getElementById("message").textContent = "";
+
+      const board = document.getElementById("board");
+      board.innerHTML = "";
+      for (let r = 0; r < 6; r++) {
+        const row = document.createElement("div");
+        row.className = "row";
+        row.id = `row-${r}`;
+        for (let c = 0; c < 5; c++) {
+          const tile = document.createElement("div");
+          tile.className = "tile";
+          tile.id = `tile-${r}-${c}`;
+          row.appendChild(tile);
+        }
+        board.appendChild(row);
+      }
+
+      const kb = document.getElementById("keyboard");
+      kb.innerHTML = "";
+      KEYBOARD_LAYOUT.forEach(rowKeys => {
+        const rowDiv = document.createElement("div");
+        rowDiv.className = "kb-row";
+        rowKeys.forEach(key => {
+          const btn = document.createElement("button");
+          btn.textContent = key;
+          btn.className = "key" + (key.length > 1 ? " wide" : "");
+          btn.id = `key-${key}`;
+          btn.onclick = () => handleInput(key);
+          rowDiv.appendChild(btn);
+        });
+        kb.appendChild(rowDiv);
+      });
+    }
+
+    function handleInput(key) {
+      if (gameOver || isChecking) return;
+      if (document.getElementById("teacher-panel").style.display === "block") return;
+
+      if ((key === "BACKSPACE" || key === "⌫") && currentGuess.length > 0) {
+        currentGuess = currentGuess.slice(0, -1);
+        updateGrid();
+      } else if (key === "ENTER" && currentGuess.length === 5) {
+        submitGuess();
+      } else if (/^[A-Z]$/.test(key) && currentGuess.length < 5) {
+        currentGuess += key;
+        updateGrid();
+      }
+    }
+
+    document.addEventListener("keydown", (e) => handleInput(e.key.toUpperCase()));
+
+    function updateGrid() {
+      for (let c = 0; c < 5; c++) {
+        document.getElementById(`tile-${currentRow}-${c}`).textContent = currentGuess[c] || "";
+      }
+    }
+
+    async function isRealWord(word) {
+      if (word === SECRET_WORD) return true;
+      try {
+        const response = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${word.toLowerCase()}`);
+        return response.ok;
+      } catch (error) {
+        return true;
+      }
+    }
+
+    async function submitGuess() {
+      isChecking = true;
+      const msg = document.getElementById("message");
+      msg.textContent = "Checking word...";
+
+      const valid = await isRealWord(currentGuess);
+      isChecking = false;
+
+      if (!valid) {
+        msg.textContent = "❌ Not in word list!";
+        const rowEl = document.getElementById(`row-${currentRow}`);
+        rowEl.classList.add("shake");
+        setTimeout(() => {
+          rowEl.classList.remove("shake");
+          if (!gameOver) msg.textContent = "";
+        }, 1200);
+        return;
+      }
+
+      msg.textContent = "";
+      checkGuess();
+    }
+
+    function checkGuess() {
+      const guessArr = currentGuess.split("");
+      const secretArr = SECRET_WORD.split("");
+      const colors = Array(5).fill("absent");
+
+      for (let i = 0; i < 5; i++) {
+        if (guessArr[i] === secretArr[i]) {
+          colors[i] = "correct";
+          secretArr[i] = null;
+          guessArr[i] = null;
+        }
+      }
+
+      for (let i = 0; i < 5; i++) {
+        if (guessArr[i] !== null && secretArr.includes(guessArr[i])) {
+          colors[i] = "present";
+          secretArr[secretArr.indexOf(guessArr[i])] = null;
+        }
+      }
+
+      for (let i = 0; i < 5; i++) {
+        const letter = currentGuess[i];
+        document.getElementById(`tile-${currentRow}-${i}`).classList.add(colors[i]);
+
+        const keyBtn = document.getElementById(`key-${letter}`);
+        if (colors[i] === "correct") {
+          keyBtn.classList.remove("present", "absent");
+          keyBtn.classList.add("correct");
+        } else if (colors[i] === "present" && !keyBtn.classList.contains("correct")) {
+          keyBtn.classList.remove("absent");
+          keyBtn.classList.add("present");
+        } else if (!keyBtn.classList.contains("correct") && !keyBtn.classList.contains("present")) {
+          keyBtn.classList.add("absent");
+        }
+      }
+
+      const msg = document.getElementById("message");
+      if (currentGuess === SECRET_WORD) {
+        msg.textContent = "🎉 Great job!";
+        gameOver = true;
+      } else if (currentRow === 5) {
+        msg.textContent = `Game over! The word was ${SECRET_WORD}.`;
+        gameOver = true;
+      } else {
+        currentRow++;
+        currentGuess = "";
+      }
+    }
+
+    if (!checkUrlForStudentWord()) {
+      loadRandomWord();
+    }
+  </script>
+</body>
+</html>
